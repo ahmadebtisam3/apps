@@ -1,0 +1,10 @@
+ix-dev/**/rendered
+out.yaml
+
+.devbox
+.vscode
+.DS_Store
+.venv
+.pytest_cache
+.coverage
+__pycache__

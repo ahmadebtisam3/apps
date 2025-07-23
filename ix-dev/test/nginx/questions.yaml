@@ -1,0 +1,130 @@
+groups:
+  - name: Network Configuration
+    description: Configure Network for Nginx
+  - name: Basic Configuration
+    description: Basic string and text configurations
+  - name: Storage Configuration
+    description: Configure storage paths
+  - name: List Configuration
+    description: Configure lists and arrays
+
+questions:
+  - variable: network
+    label: ""
+    group: Network Configuration
+    schema:
+      type: dict
+      attrs:
+        - variable: web_port
+          label: WebUI Port
+          description: The port for Nginx WebUI
+          schema:
+            type: int
+            default: 8080
+            min: 1024
+            max: 65535
+            required: true
+        - variable: worker_connections
+          label: Worker Connections
+          description: Maximum number of connections per worker
+          schema:
+            type: int
+            default: 1024
+            min: 1
+            max: 10000
+            required: true
+
+  - variable: basic_config
+    label: ""
+    group: Basic Configuration
+    schema:
+      type: dict
+      attrs:
+        - variable: server_name
+          label: Server Name
+          description: Nginx server name (string with length constraints)
+          schema:
+            type: string
+            default: "localhost"
+            min_length: 3
+            max_length: 50
+            required: true
+        - variable: custom_config
+          label: Custom Configuration
+          description: Custom nginx configuration (multiline text)
+          schema:
+            type: text
+            default: ""
+            min_length: 0
+            max_length: 2000
+            required: false
+
+  - variable: storage_config
+    label: ""
+    group: Storage Configuration
+    schema:
+      type: dict
+      attrs:
+        - variable: config_path
+          label: Configuration Path
+          description: Path to store nginx configuration files
+          schema:
+            type: path
+            default: "/mnt/config"
+            required: true
+        - variable: log_hostpath
+          label: Log Directory (Host Path)
+          description: Host path for nginx logs
+          schema:
+            type: hostpath
+            default: "/var/log/nginx"
+            required: true
+
+  - variable: list_config
+    label: ""
+    group: List Configuration
+    schema:
+      type: dict
+      attrs:
+        - variable: allowed_ips
+          label: Allowed IP Addresses
+          description: List of allowed IP addresses
+          schema:
+            type: list
+            default: ["127.0.0.1", "192.168.1.0/24"]
+            items:
+              - variable: ip
+                label: IP Address
+                schema:
+                  type: string
+                  min_length: 7
+                  max_length: 18
+            required: false
+        - variable: upstream_servers
+          label: Upstream Servers
+          description: List of upstream server configurations
+          schema:
+            type: list
+            default: []
+            items:
+              - variable: server
+                label: Server
+                schema:
+                  type: dict
+                  attrs:
+                    - variable: host
+                      label: Host
+                      schema:
+                        type: string
+                        min_length: 1
+                        max_length: 255
+                        required: true
+                    - variable: port
+                      label: Port
+                      schema:
+                        type: int
+                        min: 1
+                        max: 65535
+                        default: 80
+                        required: true
+            required: false

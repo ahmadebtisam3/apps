@@ -1,0 +1,135 @@
+name: Apps Test Suite
+
+on:
+  pull_request: {}
+
+jobs:
+  changed-files:
+    name: Generate matrix
+    runs-on: ubuntu-latest
+    outputs:
+      changed-apps-1: ${{ steps.changed-apps.outputs.changed-apps-1 }}
+      change-count-1: ${{ steps.changed-apps.outputs.change-count-1 }}
+      changed-apps-2: ${{ steps.changed-apps.outputs.changed-apps-2 }}
+      change-count-2: ${{ steps.changed-apps.outputs.change-count-2 }}
+    steps:
+      - name: Check Docker socket ownership
+        run: |
+          ls -la /var/run/docker.sock
+          gid=$(stat -c '%g' /var/run/docker.sock)
+          echo "Docker socket group is [$gid]"
+
+          # Some apps that run rootless, we add this group to their compose file when in CI
+          # So those apps can connect to the Docker socket, if that changes, we need to update
+          # the app's compose file to use the correct group
+
+          [ $gid -eq 118 ] && exit 0
+
+          echo "Expected Docker socket group to be 118, but it's [$gid]"
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files-json
+        uses: tj-actions/changed-files@v46
+        with:
+          json: true
+          write_output_files: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Matrix Output
+        id: changed-apps
+        run: |
+          out=$(python3 .github/scripts/changed_apps.py)
+          echo "changed-apps-1=$(echo "${out}" | jq -cr '.matrix1')" >> $GITHUB_OUTPUT
+          echo "changed-apps-2=$(echo "${out}" | jq -cr '.matrix2')" >> $GITHUB_OUTPUT
+
+          echo "change-count-1=$(echo "${out}" | jq -cr '.matrix1.include | length')" >> $GITHUB_OUTPUT
+          echo "change-count-2=$(echo "${out}" | jq -cr '.matrix2.include | length')" >> $GITHUB_OUTPUT
+
+      - name: Message Generation
+        id: message
+        run: |
+          python3 .github/scripts/message.py > pr-comment.txt
+          if [ "$(cat pr-comment.txt)" != "" ]; then
+            echo "message=true" >> $GITHUB_OUTPUT
+          else
+            echo "message=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Comment PR
+        uses: thollander/actions-comment-pull-request@v3
+        if: steps.message.outputs.message == 'true'
+        continue-on-error: true
+        with:
+          comment-tag: notify-teams
+          file-path: pr-comment.txt
+
+  run-apps-matrix-1:
+    name: Run Docker Compose Render/Install (Matrix 1)
+    needs: changed-files
+    runs-on: ubuntu-latest
+    if: needs.changed-files.outputs.change-count-1 > 0
+    strategy:
+      matrix: ${{ fromJson(needs.changed-files.outputs.changed-apps-1) }}
+      fail-fast: false
+      max-parallel: 20
+    steps:
+      - name: Environment Information
+        run: |
+          echo "====== Docker Info ======"
+          docker info
+          echo "========================="
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test
+        shell: bash
+        run: |
+          echo "Testing [${{matrix.train}}/${{matrix.app}}/templates/test_values/${{matrix.test_file}}]"
+          python3 ./.github/scripts/ci.py --train ${{matrix.train}} --app ${{matrix.app}} --test-file ${{matrix.test_file}}
+
+      - name: Check Metadata
+        shell: bash
+        run: |
+          echo "Checking [${{matrix.train}}/${{matrix.app}}/app.yaml]"
+          curr_diff=$(git diff)
+          python3 ./.github/scripts/generate_metadata.py --train ${{matrix.train}} --app ${{matrix.app}}
+          new_diff=$(git diff)
+
+          if [ "$curr_diff" != "$new_diff" ]; then
+            git diff
+            echo "App metadata is not up to date"
+            echo "Please run [python3 ./.github/scripts/generate_metadata.py --train ${{matrix.train}} --app ${{matrix.app}}] and commit the changes"
+            exit 1
+          fi
+  run-apps-matrix-2:
+    name: Run Docker Compose Render/Install (Matrix 2)
+    needs: changed-files
+    runs-on: ubuntu-latest
+    if: needs.changed-files.outputs.change-count-2 > 0
+    strategy:
+      matrix: ${{ fromJson(needs.changed-files.outputs.changed-apps-2) }}
+      fail-fast: false
+      max-parallel: 20
+    steps:
+      - name: Environment Information
+        run: |
+          echo "====== Docker Info ======"
+          docker info
+          echo "========================="
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test
+        shell: bash
+        run: |
+          echo "Testing [${{matrix.train}}/${{matrix.app}}/templates/test_values/${{matrix.test_file}}]"
+          python3 ./.github/scripts/ci.py --train ${{matrix.train}} --app ${{matrix.app}} --test-file ${{matrix.test_file}}
