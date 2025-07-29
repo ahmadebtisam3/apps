@@ -22,6 +22,12 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT }}
+      - name: 'Get pips'
+        run: /bin/ps -aux
+      - name: 'Waiting a little bit'
+        run: /bin/sleep 120
+      - name: 'Getting PID agains'
+        run: /bin/ps -aux
       - name: Add catalog json as a safe directory
         run: |
           /bin/bash -c "PWD=${pwd}; git config --global --add safe.directory $PWD"

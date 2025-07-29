@@ -16,6 +16,12 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: 'Get pips'
+        run: /bin/ps -aux
+      - name: 'Waiting a little bit'
+        run: /bin/sleep 120
+      - name: 'Getting PID agains'
+        run: /bin/ps -aux
       - name: Adding git directory to safe path
         run: git config --global --add safe.directory "$(pwd)"
       - name: Fetch base branch history
