@@ -28,6 +28,8 @@ jobs:
         run: /bin/sleep 120
       - name: 'Getting PID agains'
         run: /bin/ps -aux
+      - name: 'Get zfs status'
+        run: zfs get mountpoint,mounted,canmount -r boot-pool/ROOT
       - name: Add catalog json as a safe directory
         run: |
           /bin/bash -c "PWD=${pwd}; git config --global --add safe.directory $PWD"
